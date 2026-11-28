@@ -11,6 +11,7 @@
 #include "commands_display.h"
 #include "qtwidgets_utils.h"
 #include "theme.h"
+#include "widget_model_tree.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMenu>
@@ -98,6 +99,21 @@ void popupObjectVisibilityMenu(
     QObject::connect(actionShowOnlyThis, &QAction::triggered, menu, [=]{
         guiDoc->showOnlyNodes(clickedNodeIds);
     });
+
+    WidgetModelTree* modelTree = qobject_cast<WidgetModelTree*>(parent);
+    if (!modelTree && parent->window())
+        modelTree = parent->window()->findChild<WidgetModelTree*>();
+
+    if (modelTree) {
+        menu->addSeparator();
+        const DocumentTreeNode clickedNode(guiDoc->document(), clickedNodeId);
+        auto actionSimilar = menu->addAction(trCommand("Select All Similar"));
+        actionSimilar->setToolTip(trCommand("Select every item with this name"));
+        actionSimilar->setEnabled(modelTree->hasTreeItem(clickedNode));
+        QObject::connect(actionSimilar, &QAction::triggered, menu, [=]{
+            modelTree->selectAllWithSameName(clickedNode);
+        });
+    }
 
     QtWidgetsUtils::asyncMenuExec(menu, globalPos);
 }

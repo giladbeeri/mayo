@@ -14,7 +14,7 @@ namespace Mayo {
 
 class GuiDocument;
 
-// Pops up hide / show-only actions for the object under the cursor.
+// Pops up visibility and selection actions for the object under the cursor.
 // If that object is not part of the current selection, it becomes the selection.
 void popupObjectVisibilityMenu(
         QWidget* parent, GuiDocument* guiDoc, TreeNodeId clickedNodeId, const QPoint& globalPos

@@ -10,6 +10,7 @@
 #include "../base/document.h"
 #include "../gui/gui_application.h"
 #include "../qtcommon/qtcore_utils.h"
+#include "item_selection.h"
 #include "item_view_buttons.h"
 #include "object_visibility_menu.h"
 #include "qtgui_utils.h"
@@ -424,6 +425,43 @@ void WidgetModelTree::closeSearch()
     m_ui->lineEdit_Search->clear();
     m_ui->lineEdit_Search->hide();
     m_ui->treeWidget_Model->setFocus();
+}
+
+bool WidgetModelTree::hasTreeItem(const DocumentTreeNode& node) const
+{
+    return this->findTreeItem(node) != nullptr;
+}
+
+void WidgetModelTree::selectAllWithSameName(const DocumentTreeNode& node)
+{
+    if (!m_guiApp || !node.isValid())
+        return;
+
+    const QTreeWidgetItem* treeItem = this->findTreeItem(node);
+    if (!treeItem)
+        return;
+
+    const std::vector<ApplicationItem> items = this->itemsWithDisplayName(node.document(), treeItem->text(0));
+    replaceApplicationSelection(m_guiApp, items);
+}
+
+std::vector<ApplicationItem> WidgetModelTree::itemsWithDisplayName(
+        const DocumentPtr& doc, const QString& name) const
+{
+    std::vector<ApplicationItem> items;
+    QTreeWidgetItem* docItem = this->findTreeItem(doc);
+    if (!docItem)
+        return items;
+
+    for (QTreeWidgetItemIterator it(docItem); *it; ++it) {
+        if (!holdsDocumentTreeNode(*it))
+            continue;
+
+        if ((*it)->text(0) == name)
+            items.push_back(Internal::toApplicationItem(*it));
+    }
+
+    return items;
 }
 
 void WidgetModelTree::reapplyItemFilter()

@@ -58,6 +58,9 @@ public:
     void openSearch();
     void closeSearch();
     bool searchBoxHasFocus() const;
+
+    bool hasTreeItem(const DocumentTreeNode& node) const;
+    void selectAllWithSameName(const DocumentTreeNode& node);
     void reapplyItemFilter();
 
 signals:
@@ -101,6 +104,7 @@ private:
     void restoreTreeExpansion();
     void rememberTreeExpansion();
     bool filterTreeItem(QTreeWidgetItem* item, const QString& query);
+    std::vector<ApplicationItem> itemsWithDisplayName(const DocumentPtr& doc, const QString& name) const;
 
     WidgetModelTreeBuilder* findSupportBuilder(const DocumentPtr& doc) const;
     WidgetModelTreeBuilder* findSupportBuilder(const DocumentTreeNode& entityNode) const;
