@@ -13,7 +13,9 @@
 #include "../qtcommon/qstring_conv.h"
 #include "app_module.h"
 #include "app_module_properties.h"
+#include "item_selection.h"
 #include "theme.h"
+#include "widget_model_tree.h"
 
 #include <V3d_View.hxx>
 #include <QtCore/QSignalBlocker>
@@ -435,6 +437,28 @@ bool CommandRedoVisibilityChange::getEnabledStatus() const
 {
     const GuiDocument* guiDoc = this->currentGuiDocument();
     return BaseCommandDisplay::getEnabledStatus() && guiDoc && guiDoc->canRedoVisibilityChange();
+}
+
+CommandClearSelection::CommandClearSelection(IAppContext* context)
+    : BaseCommandDisplay(context)
+{
+    auto action = this->createAction();
+    action->setText(Command::tr("Deselect All"));
+    action->setToolTip(Command::tr("Clear the selection"));
+    action->setShortcut(Qt::Key_Escape);
+    this->widgetMain()->addAction(action);
+}
+
+void CommandClearSelection::execute()
+{
+    if (auto* modelTree = this->widgetMain()->findChild<WidgetModelTree*>()) {
+        if (modelTree->searchBoxHasFocus()) {
+            modelTree->closeSearch();
+            return;
+        }
+    }
+
+    clearApplicationSelection(this->guiApp());
 }
 
 } // namespace Mayo

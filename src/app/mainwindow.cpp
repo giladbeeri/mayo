@@ -64,7 +64,6 @@ MainWindow::MainWindow(GuiApplication* guiApp, QWidget* parent)
     guiApp->signalGuiDocumentErased.connectSlot(&MainWindow::onGuiDocumentErased, this);
 
     new DialogTaskManager(&m_taskMgr, this);
-
     this->updateControlsActivation();
 }
 
@@ -131,6 +130,7 @@ void MainWindow::createCommands()
     this->addCommand<CommandTurnViewClockWise>();
     this->addCommand<CommandHideSelection>();
     this->addCommand<CommandShowOnlySelection>();
+    this->addCommand<CommandClearSelection>();
     this->addCommand<CommandUndoVisibilityChange>();
     this->addCommand<CommandRedoVisibilityChange>();
 

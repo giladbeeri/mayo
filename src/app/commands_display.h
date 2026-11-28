@@ -135,6 +135,14 @@ public:
     static constexpr std::string_view Name = "redo-visibility-change";
 };
 
+class CommandClearSelection : public BaseCommandDisplay {
+public:
+    explicit CommandClearSelection(IAppContext* context);
+    void execute() override;
+
+    static constexpr std::string_view Name = "clear-selection";
+};
+
 QKeySequence hideSelectionShortcut();
 QKeySequence showOnlySelectionShortcut();
 
