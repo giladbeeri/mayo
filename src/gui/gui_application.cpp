@@ -20,18 +20,23 @@ struct GuiApplication::Private {
             gsl::span<const ApplicationItem> selected, gsl::span<const ApplicationItem> deselected)
     {
         std::unordered_set<GuiDocument*> setGuiDocDirty;
-        auto fnToggleItemSelected = [&](const ApplicationItem& item) {
+        auto fnSetItemSelected = [&](const ApplicationItem& item, bool on) {
+            if (!item.isDocumentTreeNode())
+                return;
+
             GuiDocument* guiDoc = m_backPtr->findGuiDocument(item.document());
-            if (guiDoc) {
-                guiDoc->toggleNodeSelected(item.documentTreeNode().id());
-                setGuiDocDirty.insert(guiDoc);
-            }
+            if (!guiDoc)
+                return;
+
+            // Absolute state, not a toggle: one batch can contain both a parent and its child.
+            guiDoc->setNodeSelected(item.documentTreeNode().id(), on);
+            setGuiDocDirty.insert(guiDoc);
         };
         for (const ApplicationItem& item : selected)
-            fnToggleItemSelected(item);
+            fnSetItemSelected(item, true);
 
         for (const ApplicationItem& item : deselected)
-            fnToggleItemSelected(item);
+            fnSetItemSelected(item, false);
 
         for (GuiDocument* guiDoc : setGuiDocDirty)
             guiDoc->graphicsScene()->redraw();
