@@ -9,9 +9,12 @@
 #include "../gui/gui_document.h"
 
 #include <QtWidgets/QWidget>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 
+class QEvent;
 class QItemSelection;
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -52,6 +55,17 @@ public:
     static bool holdsDocument(const QTreeWidgetItem* treeItem);
     static bool holdsDocumentTreeNode(const QTreeWidgetItem* treeItem);
 
+    void openSearch();
+    void closeSearch();
+    bool searchBoxHasFocus() const;
+    void reapplyItemFilter();
+
+signals:
+    void searchRequested();
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     void onDocumentAdded(const DocumentPtr& doc);
     void onDocumentAboutToClose(const DocumentPtr& doc);
@@ -81,6 +95,13 @@ private:
     QTreeWidgetItem* findTreeItem(const DocumentPtr& doc) const;
     QTreeWidgetItem* findTreeItem(const DocumentTreeNode& node) const;
 
+    void onSearchTextChanged(const QString& text);
+    void applySearchFilter(const QString& text);
+    void clearSearchFilter();
+    void restoreTreeExpansion();
+    void rememberTreeExpansion();
+    bool filterTreeItem(QTreeWidgetItem* item, const QString& query);
+
     WidgetModelTreeBuilder* findSupportBuilder(const DocumentPtr& doc) const;
     WidgetModelTreeBuilder* findSupportBuilder(const DocumentTreeNode& entityNode) const;
 
@@ -90,6 +111,8 @@ private:
     QString m_refItemTextTemplate;
     QMetaObject::Connection m_connTreeModelDataChanged;
     QMetaObject::Connection m_connTreeWidgetDocumentSelectionChanged;
+    std::unordered_map<std::uint64_t, bool> m_expansionBeforeSearch;
+    bool m_searchFilterActive = false;
 };
 
 } // namespace Mayo

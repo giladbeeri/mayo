@@ -27,6 +27,19 @@
     <number>0</number>
    </property>
    <item>
+    <widget class="QLineEdit" name="lineEdit_Search">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="placeholderText">
+      <string>Search</string>
+     </property>
+     <property name="clearButtonEnabled">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="Mayo::Internal::TreeWidget" name="treeWidget_Model">
      <property name="selectionMode">
       <enum>QAbstractItemView::ExtendedSelection</enum>

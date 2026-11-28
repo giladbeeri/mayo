@@ -231,6 +231,9 @@ void WidgetModelTreeBuilder_Xde::setInstanceNameFormat(const QByteArray& format)
         if (WidgetModelTree::holdsDocumentTreeNode(*it))
             this->refreshXdeAssemblyNodeItemText(*it);
     }
+
+    if (auto* modelTree = qobject_cast<WidgetModelTree*>(this->treeWidget()->parentWidget()))
+        modelTree->reapplyItemFilter();
 }
 
 std::unique_ptr<WidgetModelTreeBuilder> WidgetModelTreeBuilder_Xde::clone() const

@@ -57,6 +57,16 @@ WidgetMainControl::WidgetMainControl(GuiApplication* guiApp, QWidget* parent)
     m_ui->setupUi(this);
 
     m_ui->widget_ModelTree->registerGuiApplication(guiApp);
+    QObject::connect(m_ui->widget_ModelTree, &WidgetModelTree::searchRequested, this, [=]{
+        if (m_appContext
+                && m_guiApp->application()->documentCount() > 0
+                && m_appContext->currentPage() != IAppContext::Page::Documents) {
+            m_appContext->setCurrentPage(IAppContext::Page::Documents);
+        }
+
+        m_ui->combo_LeftContents->setCurrentIndex(0);
+        m_ui->widget_Left->show();
+    });
 
     m_ui->splitter_Main->setChildrenCollapsible(false);
 

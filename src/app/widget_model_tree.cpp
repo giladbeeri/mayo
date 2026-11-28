@@ -18,7 +18,14 @@
 
 #include <QtCore/QtDebug>
 #include <QtCore/QMetaType>
+#include <QtGui/QKeyEvent>
 #include <QtGui/QMouseEvent>
+#include <QtWidgets/QLineEdit>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#  include <QtGui/QShortcut>
+#else
+#  include <QtWidgets/QShortcut>
+#endif
 
 #include <functional>
 #include <QtWidgets/QTreeWidget>
@@ -126,6 +133,27 @@ static void setTreeItemDocumentTreeNode(QTreeWidgetItem* treeItem, const Documen
     treeItem->setData(0, TreeItemDocumentTreeNodeRole, QVariant::fromValue(node));
 }
 
+static std::uint64_t treeExpansionKey(Document::Identifier documentId, TreeNodeId nodeId)
+{
+    return (std::uint64_t(std::uint32_t(documentId)) << 32) | std::uint64_t(nodeId);
+}
+
+static bool treeItemExpansionKey(const QTreeWidgetItem* treeItem, std::uint64_t* key)
+{
+    if (WidgetModelTree::holdsDocument(treeItem)) {
+        *key = treeExpansionKey(treeItemDocument(treeItem)->identifier(), 0);
+        return true;
+    }
+
+    if (WidgetModelTree::holdsDocumentTreeNode(treeItem)) {
+        const DocumentTreeNode node = treeItemDocumentTreeNode(treeItem);
+        *key = treeExpansionKey(node.document()->identifier(), node.id());
+        return true;
+    }
+
+    return false;
+}
+
 static ApplicationItem toApplicationItem(const QTreeWidgetItem* treeItem)
 {
     const TreeItemType type = Internal::treeItemType(treeItem);
@@ -148,6 +176,19 @@ WidgetModelTree::WidgetModelTree(QWidget* widget)
 {
     m_ui->setupUi(this);
     m_ui->treeWidget_Model->setUniformRowHeights(true);
+    m_ui->lineEdit_Search->setPlaceholderText(tr("Search"));
+    m_ui->lineEdit_Search->setClearButtonEnabled(true);
+    m_ui->lineEdit_Search->setVisible(false);
+    m_ui->lineEdit_Search->installEventFilter(this);
+    QObject::connect(
+        m_ui->lineEdit_Search, &QLineEdit::textChanged,
+        this, &WidgetModelTree::onSearchTextChanged
+    );
+    QObject::connect(m_ui->lineEdit_Search, &QLineEdit::returnPressed, this, [=]{
+        m_ui->treeWidget_Model->setFocus();
+    });
+    auto searchShortcut = new QShortcut(QKeySequence::Find, this);
+    QObject::connect(searchShortcut, &QShortcut::activated, this, &WidgetModelTree::openSearch);
     for (const BuilderPtr& ptrBuilder : Internal::arrayPrototypeBuilder()) {
         m_vecBuilder.push_back(ptrBuilder->clone());
         m_vecBuilder.back()->setTreeWidget(m_ui->treeWidget_Model);
@@ -212,6 +253,8 @@ void WidgetModelTree::refreshItemText(const ApplicationItem& appItem)
         if (treeItemDocItem)
             this->findSupportBuilder(node)->refreshTextTreeItem(node, treeItemDocItem);
     }
+
+    this->reapplyItemFilter();
 }
 
 void WidgetModelTree::registerGuiApplication(GuiApplication* guiApp)
@@ -293,11 +336,13 @@ void WidgetModelTree::onDocumentAdded(const DocumentPtr& doc)
     Internal::setTreeItemDocument(treeItem, doc);
     Q_ASSERT(Internal::treeItemDocument(treeItem) == doc);
     m_ui->treeWidget_Model->addTopLevelItem(treeItem);
+    this->reapplyItemFilter();
 }
 
 void WidgetModelTree::onDocumentAboutToClose(const DocumentPtr& doc)
 {
     delete this->findTreeItem(doc);
+    this->reapplyItemFilter();
 }
 
 void WidgetModelTree::onDocumentNameChanged(const DocumentPtr& doc, const std::string& /*name*/)
@@ -305,6 +350,8 @@ void WidgetModelTree::onDocumentNameChanged(const DocumentPtr& doc, const std::s
     QTreeWidgetItem* treeItem = this->findTreeItem(doc);
     if (treeItem)
         this->findSupportBuilder(doc)->refreshTextTreeItem(doc, treeItem);
+
+    this->reapplyItemFilter();
 }
 
 QTreeWidgetItem* WidgetModelTree::loadDocumentEntity(const DocumentTreeNode& node)
@@ -339,6 +386,132 @@ QTreeWidgetItem* WidgetModelTree::findTreeItem(const DocumentTreeNode& node) con
     return nullptr;
 }
 
+void WidgetModelTree::openSearch()
+{
+    emit this->searchRequested();
+    if (!this->isVisible())
+        return;
+
+    m_ui->lineEdit_Search->show();
+    m_ui->lineEdit_Search->setFocus(Qt::ShortcutFocusReason);
+    m_ui->lineEdit_Search->selectAll();
+}
+
+bool WidgetModelTree::searchBoxHasFocus() const
+{
+    return m_ui->lineEdit_Search->hasFocus();
+}
+
+bool WidgetModelTree::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_ui->lineEdit_Search
+            && (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress)) {
+        auto keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Escape && keyEvent->modifiers() == Qt::NoModifier) {
+            event->accept();
+            if (event->type() == QEvent::KeyPress && !keyEvent->isAutoRepeat())
+                this->closeSearch();
+
+            return true;
+        }
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
+
+void WidgetModelTree::closeSearch()
+{
+    m_ui->lineEdit_Search->clear();
+    m_ui->lineEdit_Search->hide();
+    m_ui->treeWidget_Model->setFocus();
+}
+
+void WidgetModelTree::reapplyItemFilter()
+{
+    if (!m_searchFilterActive)
+        return;
+
+    this->applySearchFilter(m_ui->lineEdit_Search->text());
+}
+
+void WidgetModelTree::onSearchTextChanged(const QString& text)
+{
+    this->applySearchFilter(text);
+}
+
+void WidgetModelTree::applySearchFilter(const QString& text)
+{
+    const QString query = text.trimmed();
+    if (query.isEmpty()) {
+        this->clearSearchFilter();
+        return;
+    }
+
+    if (!m_searchFilterActive)
+        this->rememberTreeExpansion();
+
+    m_searchFilterActive = true;
+    QTreeWidget* tree = m_ui->treeWidget_Model;
+    tree->setUpdatesEnabled(false);
+    for (int i = 0; i < tree->topLevelItemCount(); ++i)
+        this->filterTreeItem(tree->topLevelItem(i), query);
+
+    tree->setUpdatesEnabled(true);
+}
+
+void WidgetModelTree::clearSearchFilter()
+{
+    if (!m_searchFilterActive)
+        return;
+
+    QTreeWidget* tree = m_ui->treeWidget_Model;
+    tree->setUpdatesEnabled(false);
+    for (QTreeWidgetItemIterator it(tree); *it; ++it)
+        (*it)->setHidden(false);
+
+    this->restoreTreeExpansion();
+    m_expansionBeforeSearch.clear();
+    m_searchFilterActive = false;
+    tree->setUpdatesEnabled(true);
+}
+
+void WidgetModelTree::restoreTreeExpansion()
+{
+    for (QTreeWidgetItemIterator it(m_ui->treeWidget_Model); *it; ++it) {
+        std::uint64_t key = 0;
+        if (!Internal::treeItemExpansionKey(*it, &key))
+            continue;
+
+        auto itExpansion = m_expansionBeforeSearch.find(key);
+        if (itExpansion != m_expansionBeforeSearch.cend())
+            (*it)->setExpanded(itExpansion->second);
+    }
+}
+
+void WidgetModelTree::rememberTreeExpansion()
+{
+    m_expansionBeforeSearch.clear();
+    for (QTreeWidgetItemIterator it(m_ui->treeWidget_Model); *it; ++it) {
+        std::uint64_t key = 0;
+        if (Internal::treeItemExpansionKey(*it, &key))
+            m_expansionBeforeSearch.insert({ key, (*it)->isExpanded() });
+    }
+}
+
+bool WidgetModelTree::filterTreeItem(QTreeWidgetItem* item, const QString& query)
+{
+    bool descendantMatches = false;
+    for (int i = 0; i < item->childCount(); ++i)
+        descendantMatches = this->filterTreeItem(item->child(i), query) || descendantMatches;
+
+    const bool matches = item->text(0).contains(query, Qt::CaseInsensitive);
+    item->setHidden(!matches && !descendantMatches);
+    if (descendantMatches)
+        item->setExpanded(true);
+
+    return matches || descendantMatches;
+}
+
 WidgetModelTreeBuilder* WidgetModelTree::findSupportBuilder(const DocumentPtr& doc) const
 {
     auto it = std::find_if(
@@ -368,12 +541,15 @@ void WidgetModelTree::onDocumentEntityAdded(const DocumentPtr& doc, TreeNodeId e
         treeDoc->addChild(treeDocEntity);
         treeDoc->setExpanded(true);
     }
+
+    this->reapplyItemFilter();
 }
 
 void WidgetModelTree::onDocumentEntityAboutToBeDestroyed(const DocumentPtr& doc, TreeNodeId entityId)
 {
     QTreeWidgetItem* treeItem = this->findTreeItem({ doc, entityId });
     delete treeItem;
+    this->reapplyItemFilter();
 }
 
 void WidgetModelTree::onTreeWidgetDocumentSelectionChanged(
