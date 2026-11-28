@@ -9,6 +9,7 @@
 #include "../gui/gui_application.h"
 #include "../gui/gui_document.h"
 #include "commands_display.h"
+#include "item_selection.h"
 #include "qtwidgets_utils.h"
 #include "theme.h"
 #include "widget_model_tree.h"
@@ -112,6 +113,18 @@ void popupObjectVisibilityMenu(
         actionSimilar->setEnabled(modelTree->hasTreeItem(clickedNode));
         QObject::connect(actionSimilar, &QAction::triggered, menu, [=]{
             modelTree->selectAllWithSameName(clickedNode);
+        });
+
+        GuiApplication* guiApp = guiDoc->guiApplication();
+        const ApplicationItem parentItem = parentOfSelectedItems(guiApp->selectionModel()->selectedItems());
+        auto actionParent = menu->addAction(trCommand("Select Parent"));
+        actionParent->setText(
+            actionParent->text() + '\t' + selectParentShortcut().toString(QKeySequence::NativeText)
+        );
+        actionParent->setEnabled(parentItem.isValid());
+        QObject::connect(actionParent, &QAction::triggered, menu, [=]{
+            const std::vector<ApplicationItem> items{ parentItem };
+            replaceApplicationSelection(guiApp, items);
         });
     }
 

@@ -621,18 +621,27 @@ void WidgetModelTree::onApplicationItemSelectionModelChanged(
     this->connectTreeWidgetDocumentSelectionChanged(false);
     auto _ = gsl::finally([=] { this->connectTreeWidgetDocumentSelectionChanged(true); });
 
-    auto fnSetSelected = [=](gsl::span<const ApplicationItem> spanAppItem, bool on) {
+    auto fnSetSelected = [&](gsl::span<const ApplicationItem> spanAppItem, bool on) {
+        bool revealed = false;
         for (const ApplicationItem& appItem : spanAppItem) {
-            if (!appItem.isDocumentTreeNode())
-                continue;
+            QTreeWidgetItem* treeItem = nullptr;
+            if (appItem.isDocument())
+                treeItem = this->findTreeItem(appItem.document());
+            else if (appItem.isDocumentTreeNode())
+                treeItem = this->findTreeItem(appItem.documentTreeNode());
 
-            QTreeWidgetItem* treeItem = this->findTreeItem(appItem.documentTreeNode());
             if (!treeItem)
                 continue;
 
             treeItem->setSelected(on);
-            if (on)
-                m_ui->treeWidget_Model->scrollToItem(treeItem);
+            if (!on || revealed)
+                continue;
+
+            for (QTreeWidgetItem* parentItem = treeItem->parent(); parentItem; parentItem = parentItem->parent())
+                parentItem->setExpanded(true);
+
+            m_ui->treeWidget_Model->scrollToItem(treeItem);
+            revealed = true;
         }
     };
 

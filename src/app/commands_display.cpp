@@ -22,6 +22,8 @@
 #include <QActionGroup> // WARNING Qt5 <QtWidgets/...> / Qt6 <QtGui/...>
 #include <QtWidgets/QMenu>
 
+#include <vector>
+
 namespace Mayo {
 
 BaseCommandDisplay::BaseCommandDisplay(IAppContext* context)
@@ -334,6 +336,13 @@ QKeySequence showOnlySelectionShortcut()
 #endif
 }
 
+QKeySequence selectParentShortcut()
+{
+    // Qt::CTRL is Command on macOS and Control on Windows and Linux.
+    // Command+Up is Finder's shortcut for the enclosing folder. Control+Up on macOS is Mission Control.
+    return Qt::CTRL | Qt::Key_Up;
+}
+
 namespace {
 
 bool selectionCanBeHidden(const GuiDocument* guiDoc)
@@ -459,6 +468,36 @@ void CommandClearSelection::execute()
     }
 
     clearApplicationSelection(this->guiApp());
+}
+
+CommandSelectParent::CommandSelectParent(IAppContext* context)
+    : BaseCommandDisplay(context)
+{
+    auto action = this->createAction();
+    action->setText(Command::tr("Select Parent"));
+    action->setToolTip(Command::tr(
+        "Select the parent of the selection, or the nearest shared parent when several items are selected"
+    ));
+    action->setShortcut(selectParentShortcut());
+}
+
+void CommandSelectParent::execute()
+{
+    GuiApplication* guiApp = this->guiApp();
+    const ApplicationItem parentItem = parentOfSelectedItems(guiApp->selectionModel()->selectedItems());
+    if (!parentItem.isValid())
+        return;
+
+    const std::vector<ApplicationItem> items{ parentItem };
+    replaceApplicationSelection(guiApp, items);
+}
+
+bool CommandSelectParent::getEnabledStatus() const
+{
+    if (!BaseCommandDisplay::getEnabledStatus())
+        return false;
+
+    return parentOfSelectedItems(this->guiApp()->selectionModel()->selectedItems()).isValid();
 }
 
 } // namespace Mayo

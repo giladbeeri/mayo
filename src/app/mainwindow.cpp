@@ -131,6 +131,7 @@ void MainWindow::createCommands()
     this->addCommand<CommandHideSelection>();
     this->addCommand<CommandShowOnlySelection>();
     this->addCommand<CommandClearSelection>();
+    this->addCommand<CommandSelectParent>();
     this->addCommand<CommandUndoVisibilityChange>();
     this->addCommand<CommandRedoVisibilityChange>();
 
@@ -191,6 +192,8 @@ void MainWindow::createMenus()
         menu->addSeparator();
         fnAddAction(menu, CommandHideSelection::Name);
         fnAddAction(menu, CommandShowOnlySelection::Name);
+        menu->addSeparator();
+        fnAddAction(menu, CommandSelectParent::Name);
         menu->addSeparator();
         fnAddAction(menu, CommandUndoVisibilityChange::Name);
         fnAddAction(menu, CommandRedoVisibilityChange::Name);

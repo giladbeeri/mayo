@@ -143,7 +143,17 @@ public:
     static constexpr std::string_view Name = "clear-selection";
 };
 
+class CommandSelectParent : public BaseCommandDisplay {
+public:
+    explicit CommandSelectParent(IAppContext* context);
+    void execute() override;
+    bool getEnabledStatus() const override;
+
+    static constexpr std::string_view Name = "select-parent";
+};
+
 QKeySequence hideSelectionShortcut();
 QKeySequence showOnlySelectionShortcut();
+QKeySequence selectParentShortcut();
 
 } // namespace Mayo
