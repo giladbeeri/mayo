@@ -14,6 +14,7 @@
 #include "app_module.h"
 #include "app_module_properties.h"
 #include "item_selection.h"
+#include "selection_history.h"
 #include "theme.h"
 #include "widget_model_tree.h"
 
@@ -343,6 +344,16 @@ QKeySequence selectParentShortcut()
     return Qt::CTRL | Qt::Key_Up;
 }
 
+QKeySequence previousSelectionShortcut()
+{
+    return Qt::CTRL | Qt::Key_Down;
+}
+
+QKeySequence nextSelectionShortcut()
+{
+    return Qt::CTRL | Qt::SHIFT | Qt::Key_Down;
+}
+
 namespace {
 
 bool selectionCanBeHidden(const GuiDocument* guiDoc)
@@ -498,6 +509,57 @@ bool CommandSelectParent::getEnabledStatus() const
         return false;
 
     return parentOfSelectedItems(this->guiApp()->selectionModel()->selectedItems()).isValid();
+}
+
+namespace {
+
+SelectionHistory* selectionHistoryOf(QWidget* mainWidget)
+{
+    return mainWidget ? mainWidget->findChild<SelectionHistory*>() : nullptr;
+}
+
+} // namespace
+
+CommandPreviousSelection::CommandPreviousSelection(IAppContext* context)
+    : BaseCommandDisplay(context)
+{
+    auto action = this->createAction();
+    action->setText(Command::tr("Previous Selection"));
+    action->setToolTip(Command::tr("Go back to the previous selection. Show and hide changes stay on their own undo stack"));
+    action->setShortcut(previousSelectionShortcut());
+}
+
+void CommandPreviousSelection::execute()
+{
+    if (SelectionHistory* history = selectionHistoryOf(this->widgetMain()))
+        history->goBack();
+}
+
+bool CommandPreviousSelection::getEnabledStatus() const
+{
+    const SelectionHistory* history = selectionHistoryOf(this->widgetMain());
+    return BaseCommandDisplay::getEnabledStatus() && history && history->canGoBack();
+}
+
+CommandNextSelection::CommandNextSelection(IAppContext* context)
+    : BaseCommandDisplay(context)
+{
+    auto action = this->createAction();
+    action->setText(Command::tr("Next Selection"));
+    action->setToolTip(Command::tr("Go forward to the selection that was left with Previous Selection"));
+    action->setShortcut(nextSelectionShortcut());
+}
+
+void CommandNextSelection::execute()
+{
+    if (SelectionHistory* history = selectionHistoryOf(this->widgetMain()))
+        history->goForward();
+}
+
+bool CommandNextSelection::getEnabledStatus() const
+{
+    const SelectionHistory* history = selectionHistoryOf(this->widgetMain());
+    return BaseCommandDisplay::getEnabledStatus() && history && history->canGoForward();
 }
 
 } // namespace Mayo

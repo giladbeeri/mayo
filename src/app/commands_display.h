@@ -152,8 +152,28 @@ public:
     static constexpr std::string_view Name = "select-parent";
 };
 
+class CommandPreviousSelection : public BaseCommandDisplay {
+public:
+    explicit CommandPreviousSelection(IAppContext* context);
+    void execute() override;
+    bool getEnabledStatus() const override;
+
+    static constexpr std::string_view Name = "previous-selection";
+};
+
+class CommandNextSelection : public BaseCommandDisplay {
+public:
+    explicit CommandNextSelection(IAppContext* context);
+    void execute() override;
+    bool getEnabledStatus() const override;
+
+    static constexpr std::string_view Name = "next-selection";
+};
+
 QKeySequence hideSelectionShortcut();
 QKeySequence showOnlySelectionShortcut();
 QKeySequence selectParentShortcut();
+QKeySequence previousSelectionShortcut();
+QKeySequence nextSelectionShortcut();
 
 } // namespace Mayo

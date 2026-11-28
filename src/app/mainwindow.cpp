@@ -19,6 +19,7 @@
 #include "commands_help.h"
 #include "dialog_task_manager.h"
 #include "qtgui_utils.h"
+#include "selection_history.h"
 #include "qtwidgets_utils.h"
 #include "theme.h"
 #include "widget_main_control.h"
@@ -64,6 +65,13 @@ MainWindow::MainWindow(GuiApplication* guiApp, QWidget* parent)
     guiApp->signalGuiDocumentErased.connectSlot(&MainWindow::onGuiDocumentErased, this);
 
     new DialogTaskManager(&m_taskMgr, this);
+
+    auto* selectionHistory = new SelectionHistory(guiApp, this);
+    QObject::connect(
+        selectionHistory, &SelectionHistory::historyChanged,
+        this, &MainWindow::updateControlsActivation
+    );
+
     this->updateControlsActivation();
 }
 
@@ -132,6 +140,8 @@ void MainWindow::createCommands()
     this->addCommand<CommandShowOnlySelection>();
     this->addCommand<CommandClearSelection>();
     this->addCommand<CommandSelectParent>();
+    this->addCommand<CommandPreviousSelection>();
+    this->addCommand<CommandNextSelection>();
     this->addCommand<CommandUndoVisibilityChange>();
     this->addCommand<CommandRedoVisibilityChange>();
 
@@ -194,6 +204,8 @@ void MainWindow::createMenus()
         fnAddAction(menu, CommandShowOnlySelection::Name);
         menu->addSeparator();
         fnAddAction(menu, CommandSelectParent::Name);
+        fnAddAction(menu, CommandPreviousSelection::Name);
+        fnAddAction(menu, CommandNextSelection::Name);
         menu->addSeparator();
         fnAddAction(menu, CommandUndoVisibilityChange::Name);
         fnAddAction(menu, CommandRedoVisibilityChange::Name);
